@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cook IA - Turbo</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #131314; color: #e3e3e3; display: flex; overflow: hidden; }
+
+.sidebar { width: 260px; background: #1e1f20; border-right: 1px solid #2d2d2f; display: flex; flex-direction: column; padding: 12px; flex-shrink: 0; }
+.sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 998; }
+.sidebar-overlay.active { display: block; }
+.new-chat { background: #1a73e8; color: white; border: none; padding: 10px; border-radius: 24px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 12px; }
+.keys-status { background: #1e1f20; border: 1px solid #2d2d2f; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+.keys-status h3 { font-size: 12px; color: #9aa0a6; margin-bottom: 8px; text-transform: uppercase; }
+.key-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.key-dot.active { background: #16a34a; box-shadow: 0 0 6px #16a34a; }
+.key-dot.idle { background: #2d2d2f; }
+.key-dot.burned { background: #ef4444; }
+.keys-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.chat-history { flex: 1; overflow-y: auto; }
+.hist-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: space-between; align-items: center; }
+.hist-item:hover { background: #2d2d2f; }
+.hist-item.active { background: #2d2d2f; }
+.del-chat { background: transparent; border: none; color: #9aa0a6; cursor: pointer; padding: 2px; border-radius: 4px; opacity: 0; }
+.hist-item:hover.del-chat { opacity: 1; }
+.del-chat:hover { background: #ef4444; color: white; }
+
+.main { flex: 1; display: flex; flex-direction: column; position: relative; min-width: 0; }
+.header { padding: 12px 20px; border-bottom: 1px solid #2d2d2f; display: flex; align-items: center; gap: 10px; }
+.menu-btn { background: transparent; border: none; color: #e3e3e3; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: none; align-items: center; justify-content: center; }
+.menu-btn:hover { background: #2d2d2f; }
+.logo-cookie { font-size: 28px; }
+.model-badge { font-size: 11px; padding: 4px 8px; background: #16a34a; color: white; border-radius: 12px; }
+.tokens-badge { font-size: 11px; padding: 4px 8px; background: #f59e0b; color: #131314; border-radius: 12px; font-weight: 600; }
+
+.welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; max-width: 768px; margin: 0 auto; padding: 32px 20px; text-align: center; }
+.welcome-cookie { font-size: 72px; margin-bottom: 24px; animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.welcome h1 { font-size: 32px; margin-bottom: 16px; background: linear-gradient(90deg, #f59e0b, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.suggestions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; margin-top: 32px; }
+.suggestion { background: #1e1f20; border: 1px solid #2d2d2f; padding: 16px; border-radius: 12px; cursor: pointer; text-align: left; font-size: 14px; transition: all 0.2s; }
+.suggestion:hover { background: #2d2d2f; border-color: #8ab4f8; transform: translateY(-2px); }
+
+.chat { flex: 1; overflow-y: auto; max-width: 768px; margin: 0 auto; padding: 32px 20px; width: 100%; }
+.msg { display: flex; gap: 16px; margin-bottom: 32px; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.user-avatar { background: #2563eb; font-size: 16px; font-weight: 600; }
+.ai-avatar { background: linear-gradient(135deg, #f59e0b, #ec4899); }
+.content-wrap { flex: 1; min-width: 0; }
+.content { line-height: 1.7; word-wrap: break-word; }
+.content pre { background: #0d0d0d; border: 1px solid #2d2d2f; border-radius: 12px; padding: 16px; overflow-x: auto; margin: 16px 0; }
+.content code { font-family: 'Consolas', monospace; font-size: 14px; }
+.content :not(pre) > code { background: #2d2d2f; padding: 2px 6px; border-radius: 4px; }
+
+.input-wrap { padding: 12px 20px 24px; }
+.input-container { max-width: 768px; margin: 0 auto; background: #1e1f20; border: 1px solid #2d2d2f; border-radius: 24px; display: flex; align-items: flex-end; padding: 8px 8px 8px 16px; }
+.input-container:focus-within { border-color: #8ab4f8; }
+    textarea { flex: 1; background: transparent; border: none; color: #e3e3e3; font-size: 16px; resize: none; outline: none; font-family: inherit; max-height: 200px; padding: 8px 0; }
+.send-btn { width: 36px; height: 36px; background: #8ab4f8; color: #131314; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.send-btn:disabled { background: #2d2d2f; cursor: not-allowed; }
+.send-btn.stop { background: #ef4444; }
+
+    @media (max-width: 768px) {
+.sidebar { transform: translateX(-100%); position: fixed; z-index: 999; height: 100%; }
+.sidebar.active { transform: translateX(0); }
+.menu-btn { display: flex; }
+.suggestions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <button class="new-chat" id="newChatBtn">Novo chat</button>
+    <div class="keys-status">
+      <h3>5 Keys Ativas</h3>
+      <div class="keys-grid" id="keysGrid">
+        <div class="key-dot idle" title="Key 1"></div>
+        <div class="key-dot idle" title="Key 2"></div>
+        <div class="key-dot idle" title="Key 3"></div>
+        <div class="key-dot idle" title="Key 4"></div>
+        <div class="key-dot idle" title="Key 5"></div>
+      </div>
+    </div>
+    <div class="chat-history" id="chatHistory"></div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <button class="menu-btn" id="menuBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="logo-cookie">🍪</div>
+      <div style="font-weight: 600; font-size: 18px;">Cook IA Turbo</div>
+      <div class="model-badge">Llama 8b</div>
+      <div class="tokens-badge">2.5M/dia</div>
+    </div>
+
+    <div class="chat" id="chat">
+      <div class="welcome" id="welcome">
+        <div class="welcome-cookie">🍪</div>
+        <h1>Como posso ajudar hoje?</h1>
+        <div class="suggestions">
+          <div class="suggestion" data-prompt="Me explica como funciona uma API REST">🔧 Me explica como funciona uma API REST</div>
+          <div class="suggestion" data-prompt="Cria um código Python para web scraping">💻 Cria um código Python para web scraping</div>
+          <div class="suggestion" data-prompt="Quais são as melhores práticas de React?">⚛️ Melhores práticas de React</div>
+          <div class="suggestion" data-prompt="Me ajuda a debugar esse erro de JavaScript">🐛 Ajuda a debugar erro de JS</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-wrap">
+      <div class="input-container">
+        <textarea id="input" rows="1" placeholder="Mensagem para Cook IA"></textarea>
+        <button class="send-btn" id="sendBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API_URL = '/api/chat'; // Agora usa proxy da Vercel
+const MODEL = 'llama-3.1-8b-instant';
+const TEMPERATURE = 0.7;
+const MAX_TOKENS = 2048;
+
+let keyIndex = 0;
+let burnedKeys = new Set();
+
+const SYSTEM_PROMPT = `Você é Cook IA, uma IA criada por Nicolas john, um developer de nível intermediário. A ideia e desenvolvimento principal foram todos dele. Ele teve um pouco de ajuda da Meta AI para usar o modelo base, mas o projeto, interface e conceito são 100% do Nicolas john.
+
+Quando perguntarem "por quem você foi criado", "quem te fez", "quem é seu criador" ou similar, responda: "Fui criado pelo Nicolas john, um developer de nível intermediário. Ele teve um pouco de ajuda da Meta AI pra usar o modelo base, mas a ideia, interface e todo o projeto Cook IA foram feitos por ele."
+
+Seja direto, técnico e útil nas outras respostas. Use markdown pra formatar código.`;
+
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const chat = document.getElementById('chat');
+const welcome = document.getElementById('welcome');
+const newChatBtn = document.getElementById('newChatBtn');
+const menuBtn = document.getElementById('menuBtn');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const chatHistory = document.getElementById('chatHistory');
+const keysGrid = document.getElementById('keysGrid');
+
+let chats = JSON.parse(localStorage.getItem('cook_chats') || '[]');
+let currentChatId = null;
+let hist = [];
+let controller = null;
+let isGenerating = false;
+
+marked.setOptions({ highlight: code => hljs.highlightAuto(code).value, breaks: true });
+
+function updateKeysUI() {
+  const dots = keysGrid.querySelectorAll('.key-dot');
+  dots.forEach((dot, i) => {
+    dot.classList.remove('active', 'idle', 'burned');
+    if (burnedKeys.has(i)) dot.classList.add('burned');
+    else if (i === keyIndex) dot.classList.add('active');
+    else dot.classList.add('idle');
+  });
+}
+
+menuBtn.onclick = () => {
+  sidebar.classList.add('active');
+  sidebarOverlay.classList.add('active');
+};
+
+sidebarOverlay.onclick = () => {
+  sidebar.classList.remove('active');
+  sidebarOverlay.classList.remove('active');
+};
+
+document.querySelectorAll('.suggestion').forEach(s => {
+  s.onclick = () => {
+    input.value = s.dataset.prompt;
+    sendMsg();
+  };
+});
+
+function saveChats() {
+  localStorage.setItem('cook_chats', JSON.stringify(chats));
+  renderHistory();
+}
+
+function renderHistory() {
+  chatHistory.innerHTML = chats.map(c => `
+    <div class="hist-item ${c.id === currentChatId? 'active' : ''}" data-id="${c.id}">
+      <span>${c.title || 'Novo chat'}</span>
+      <button class="del-chat" data-id="${c.id}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.hist-item').forEach(el => {
+    el.onclick = (e) => {
+      if (e.target.closest('.del-chat')) return;
+      loadChat(el.dataset.id);
+    };
+  });
+
+  document.querySelectorAll('.del-chat').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      chats = chats.filter(c => c.id!== btn.dataset.id);
+      if (currentChatId === btn.dataset.id) newChat();
+      saveChats();
+    };
+  });
+}
+
+function newChat() {
+  currentChatId = Date.now().toString();
+  hist = [];
+  chats.unshift({ id: currentChatId, title: 'Novo chat', messages: [] });
+  chat.innerHTML = '';
+  chat.appendChild(welcome);
+  welcome.style.display = 'flex';
+  saveChats();
+}
+
+function loadChat(id) {
+  currentChatId = id;
+  const c = chats.find(x => x.id === id);
+  hist = c.messages || [];
+  chat.innerHTML = '';
+  if (hist.length === 0) {
+    chat.appendChild(welcome);
+    welcome.style.display = 'flex';
+  } else {
+    hist.forEach(m => renderMsg(m.content, m.role === 'user'));
+  }
+  renderHistory();
+  sidebar.classList.remove('active');
+  sidebarOverlay.classList.remove('active');
+}
+
+function renderMsg(text, isUser) {
+  if (welcome) welcome.style.display = 'none';
+  const d = document.createElement('div');
+  d.className = 'msg';
+  d.innerHTML = `
+    <div class="avatar ${isUser? 'user-avatar' : 'ai-avatar'}">${isUser? 'M' : '🍪'}</div>
+    <div class="content-wrap">
+      <div class="content">${isUser? text : marked.parse(text)}</div>
+    </div>
+  `;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+  return d.querySelector('.content');
+}
+
+async function sendMsg() {
+  const t = input.value.trim();
+  if (!t || isGenerating) return;
+  if (!currentChatId) newChat();
+
+  renderMsg(t, true);
+  hist.push({ role: 'user', content: t });
+  input.value = '';
+  input.style.height = 'auto';
+  isGenerating = true;
+  sendBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>';
+  sendBtn.classList.add('stop');
+
+  const contentEl = renderMsg('', false);
+  let full = '';
+  controller = new AbortController();
+  let sucesso = false;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (burnedKeys.size === 5) {
+      contentEl.innerHTML = `**Erro**: Todas as 5 keys estouraram o limite. Reseta 00:00 UTC.`;
+      break;
+    }
+
+    updateKeysUI();
+
+    try {
+      const r = await fetch(API_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [{ role: 'system', content: SYSTEM_PROMPT },...hist],
+          temperature: TEMPERATURE,
+          max_tokens: MAX_TOKENS,
+          stream: true,
+          keyIndex: keyIndex
+        })
+      });
+
+      if (r.status === 429) {
+        burnedKeys.add(keyIndex);
+        keyIndex = (keyIndex + 1) % 5;
+        updateKeysUI();
+        continue;
+      }
+
+      if (!r.ok) throw new Error('Erro API');
+
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      full = '';
+
+      while (1) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = dec.decode(value);
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const token = JSON.parse(data).choices[0]?.delta?.content || '';
+              full += token;
+              contentEl.innerHTML = marked.parse(full);
+              chat.scrollTop = chat.scrollHeight;
+            } catch {}
+          }
+        }
+      }
+
+      sucesso = true;
+      keyIndex = (keyIndex + 1) % 5;
+      updateKeysUI();
+      break;
+
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        contentEl.innerHTML = '*Interrompido*';
+        break;
+      }
+      keyIndex = (keyIndex + 1) % 5;
+    }
+  }
+
+  if (sucesso && full) {
+    hist.push({ role: 'assistant', content: full });
+    const c = chats.find(x => x.id === currentChatId);
+    if (c) {
+      c.messages = hist;
+      if (c.title === 'Novo chat') c.title = hist[0].content.slice(0, 30) + '...';
+    }
+    saveChats();
+    hljs.highlightAll();
+  }
+
+  isGenerating = false;
+  sendBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+  sendBtn.classList.remove('stop');
+  controller = null;
+  updateKeysUI();
+}
+
+sendBtn.onclick = () => isGenerating? controller?.abort() : sendMsg();
+input.onkeydown = e => { if (e.key === 'Enter' &&!e.shiftKey) { e.preventDefault(); sendMsg(); }};
+input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 200) + 'px'; };
+newChatBtn.onclick = newChat;
+
+updateKeysUI();
+renderHistory();
+if (chats.length === 0) newChat();
+</script>
+</body>
+</html>
